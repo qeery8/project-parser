@@ -1,6 +1,6 @@
 package telegram
 
-const msgHelp = "......"
+const msgHelp = "команда /pars для выбора сайта, который нужно парсить"
 
 const msgStart = "Hi \n\n" + msgHelp
 

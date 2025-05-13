@@ -6,6 +6,8 @@ import (
 	"github.com/qeery8/api"
 	"github.com/qeery8/events"
 	e "github.com/qeery8/lib"
+	"github.com/qeery8/parsing"
+	"log"
 )
 
 type Processor struct {
@@ -51,13 +53,16 @@ func (p *Processor) Fetch(ctx context.Context, limit int) ([]events.Event, error
 }
 
 func (p *Processor) Process(ctx context.Context, event events.Event) error {
+	log.Printf("Processing event of type: %s", event.Type)
+
 	switch event.Type {
 	case events.Message:
 		return p.processMessage(ctx, event)
 	case events.CallbackQuery:
 		return p.processCallback(ctx, event)
 	default:
-		return e.Wrap("can't process message", ErrUnknownEventType)
+		log.Printf("Unknown event type: %v", event.Type)
+		return nil
 	}
 }
 
@@ -67,16 +72,26 @@ func (p *Processor) processCallback(ctx context.Context, event events.Event) err
 		return e.Wrap("can't process callback", err)
 	}
 
+	log.Printf("Processing callback with text: %s", event.Text)
+
 	switch event.Text {
 	case "site_wallapop":
 		return p.handleWallapop(ctx, meta.ChatID)
-	case "site_subito":
-		return p.handleSubito(ctx, meta.ChatID)
-	case "site_fiverr":
-		return p.HandleFiverr(ctx, meta.ChatID)
+	//case "site_subito":
+	//return p.handleSubito(ctx, meta.ChatID)
+	//case "site_fiverr":
+	//return p.HandleFiverr(ctx, meta.ChatID)
 	default:
 		return p.tg.SendMessage(ctx, meta.ChatID, "Unknown command")
 	}
+}
+
+func (p *Processor) handleWallapop(ctx context.Context, chatID int) error {
+	data, err := parsing.ParseWallapop()
+	if err != nil {
+		return p.tg.SendMessage(ctx, chatID, "Failed to fetch Wallapop ads.")
+	}
+	return p.tg.SendMessage(ctx, chatID, data)
 }
 
 func (p *Processor) processMessage(ctx context.Context, event events.Event) error {
@@ -102,6 +117,8 @@ func meta(event events.Event) (Meta, error) {
 
 func event(upd api.Update) events.Event {
 	updType := fetchType(upd)
+
+	log.Printf("Fetched event type: %v", updType)
 
 	res := events.Event{
 		Type: updType,
@@ -137,12 +154,16 @@ func fetchText(upd api.Update) string {
 }
 
 func fetchType(upd api.Update) events.Type {
-	if upd.Message == nil {
-		return events.Unknown
+	if upd.Message != nil && upd.Message.Text != "" {
+		log.Printf("Message received: %v", upd.Message)
+		return events.Message
 	}
+
 	if upd.CallbackQuery != nil {
+		log.Printf("CallbackQuery received: %v", upd.CallbackQuery)
 		return events.CallbackQuery
 	}
 
-	return events.Message
+	log.Printf("Unknown event: %v", upd)
+	return events.Unknown
 }

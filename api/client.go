@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	e "github.com/qeery8/lib"
@@ -96,4 +97,41 @@ func (c *Client) doRequest(ctx context.Context, method string, query url.Values)
 	}
 
 	return body, nil
+}
+
+func (c *Client) SendMessageWithKeyboard(ctx context.Context, chatID int, text string, keyboard string) error {
+	reqBody := map[string]interface{}{
+		"chat_id":      chatID,
+		"text":         text,
+		"reply_markup": json.RawMessage(keyboard),
+	}
+
+	data, err := json.Marshal(reqBody)
+	if err != nil {
+		return e.Wrap("can't marshal keyboard request", err)
+	}
+
+	u := url.URL{
+		Scheme: "https",
+		Host:   c.host,
+		Path:   path.Join(c.basePath, sendMessageMethod),
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), bytes.NewReader(data))
+	if err != nil {
+		return e.Wrap("can't create request", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return e.Wrap("can't send keyboard request", err)
+	}
+	defer resp.Body.Close()
+
+	_, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return e.Wrap("can't read keyboard response", err)
+	}
+	return nil
 }

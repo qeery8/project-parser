@@ -41,7 +41,7 @@ func (p *Processor) sendSitChoice(ctx context.Context, chatID int) error {
 		]
 	}`
 
-	return p.tg.SendMessage(ctx, chatID)
+	return p.tg.SendMessageWithKeyboard(ctx, chatID, msg, keyboard)
 }
 
 func (p *Processor) sendStart(ctx context.Context, chatID int) error {
