@@ -12,7 +12,7 @@ func main() {
 	ctx := context.Background()
 
 	host := "api.telegram.org"
-	token := "TOKEN_BOT"
+	token := "7725781436:AAGLygvywctY3rP_gY8svHQWniXwZp0WSgA"
 	client := api.New(host, token)
 
 	processor := telegram.New(client)

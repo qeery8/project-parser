@@ -13,7 +13,6 @@ func GetAPIResponse(url string, result interface{}, headers map[string]string) e
 		return fmt.Errorf("failed to create HTTP request: %s", err)
 	}
 
-	// Set the request headers
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
