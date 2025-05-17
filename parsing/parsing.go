@@ -6,14 +6,16 @@ import (
 )
 
 type Item struct {
-	ID    int    `json:"id"`
-	Title string `json:"title"`
-	Price struct {
-		Amount float64 `json:"amount"`
-	} `json:"price"`
-	WebSlug string `json:"web_slug"`
+	ID      string  `json:"id"`
+	Title   string  `json:"title"`
+	Price   float64 `json:"price"`
+	WebSlug string  `json:"web_slug"`
 	Images  []struct {
 		Original string `json:"original"`
+		Small    string `json:"small"`
+		Medium   string `json:"medium"`
+		Large    string `json:"large"`
+		XLarge   string `json:"xlarge"`
 	} `json:"images"`
 }
 
@@ -23,28 +25,29 @@ type SearchResponce struct {
 	} `json:"search_objects"`
 }
 
-func ParseWallapop() (string, error) {
-	url := "https://api.wallapop.com/api/v3/general/search?keywords=iphone&latitude=40.4168&longitude=-3.7038&order_by=most_relevance"
+func ParseWallapop(offset int) ([]string, error) {
+	url := fmt.Sprintf("https://api.wallapop.com/api/v3/cars/search?latitude=40.4168&longitude=-3.7038&start=%d&num=%d", offset, offset+50)
+
+	headers := map[string]string{}
 
 	var result SearchResponce
-	err := http.GetAPIResponse(url, &result, nil)
+	err := http.GetAPIResponse(url, &result, headers)
 	if err != nil {
-		return "", fmt.Errorf("falied to fetch wallapop", err)
+		return nil, fmt.Errorf("falied to fetch wallapop %w", err)
 	}
 
 	if len(result.SearchObjects) == 0 {
-		return "Not found", nil
+		return []string{"Not found"}, nil
 	}
 
-	var out string
-	for i, obj := range result.SearchObjects {
+	var out []string
+	for _, obj := range result.SearchObjects {
 		item := obj.Content
 		link := fmt.Sprintf("https://es.wallapop.com/item/%s", item.WebSlug)
-		out += fmt.Sprintf("title: %s\n, price: %.2f\n, link: %s\n", item.Title, item.Price.Amount, link)
+		image := ""
+		text := fmt.Sprintf("title: %s\n price: %.2f\n link: %s\n %s\n", item.Title, item.Price, link, image)
 
-		if i >= 4 {
-			break
-		}
+		out = append(out, text)
 	}
 	return out, nil
 }

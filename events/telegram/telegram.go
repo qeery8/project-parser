@@ -3,6 +3,7 @@ package telegram
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/qeery8/api"
 	"github.com/qeery8/events"
 	e "github.com/qeery8/lib"
@@ -11,8 +12,9 @@ import (
 )
 
 type Processor struct {
-	tg     *api.Client
-	offset int
+	tg         *api.Client
+	offset     int
+	userOffets map[int]int
 }
 
 type Meta struct {
@@ -27,7 +29,8 @@ var (
 
 func New(client *api.Client) *Processor {
 	return &Processor{
-		tg: client,
+		tg:         client,
+		userOffets: make(map[int]int),
 	}
 }
 
@@ -87,11 +90,35 @@ func (p *Processor) processCallback(ctx context.Context, event events.Event) err
 }
 
 func (p *Processor) handleWallapop(ctx context.Context, chatID int) error {
-	data, err := parsing.ParseWallapop()
+	offset := p.userOffets[chatID]
+
+	data, err := parsing.ParseWallapop(offset)
 	if err != nil {
-		return p.tg.SendMessage(ctx, chatID, "Failed to fetch Wallapop ads.")
+		return p.tg.SendMessage(ctx, chatID, fmt.Sprintf("Wallapop error: %v", err))
 	}
-	return p.tg.SendMessage(ctx, chatID, data)
+
+	p.userOffets[chatID] = offset + 50
+
+	const maxChunkSize = 4000
+	var chunk string
+
+	for _, item := range data {
+		if len(chunk)+len(item) > maxChunkSize {
+			if err := p.tg.SendMessage(ctx, chatID, chunk); err != nil {
+				return err
+			}
+			chunk = ""
+		}
+		chunk += item + "\n"
+	}
+
+	if chunk != "" {
+		if err := p.tg.SendMessage(ctx, chatID, chunk); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (p *Processor) processMessage(ctx context.Context, event events.Event) error {
